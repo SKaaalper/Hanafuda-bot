@@ -34,9 +34,14 @@ python3 main.py
 首先，您需要获取刷新令牌
 
 打开 HANA 仪表板：https://hanafuda.hana.network/dashboard
+
 按 F12 打开控制台
+
 找到 "Application"，选择 session storage
+
 选择 hana 并复制您的 refreshToken
+
 编辑 token.txt 并粘贴您的刷新令牌
+
 ![image](https://github.com/user-attachments/assets/fda26b50-6727-4b58-b957-5a6b92a59b90)
 
