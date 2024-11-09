@@ -193,9 +193,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.action is None:
-        args.action = input(Fore.YELLOW + "选择操作 (1: 功能停用,请输入2: 执行增长和花园任务): " + Style.RESET_ALL)
+        args.action = input(Fore.YELLOW + "选择操作 (功能1停用请直接输入2 执行增长和花园任务): " + Style.RESET_ALL)
         while args.action not in ['1', '2']:
             print(Fore.RED + "无效选择，请选择1或2。" + Style.RESET_ALL)
-            args.action = input(Fore.YELLOW + "选择操作 (1:功能停用,请输入2: 执行增长和花园任务): " + Style.RESET_ALL)
+            args.action = input(Fore.YELLOW + "选择操作 (功能1停用请直接输入2 执行增长和花园任务): " + Style.RESET_ALL)
    
     asyncio.run(main(args.action, args.transactions))
