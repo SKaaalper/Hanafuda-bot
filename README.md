@@ -45,3 +45,17 @@ python3 main.py
 
 ![image](https://github.com/user-attachments/assets/fda26b50-6727-4b58-b957-5a6b92a59b90)
 
+## 可选：使用 pm2 在后台运行脚本
+可以使用 pm2 在后台运行脚本，使其在关闭终端后继续运行。
+
+安装 pm2
+如果未安装 pm2，可以通过 npm 全局安装
+```bash
+npm install -g pm2
+```
+使用 pm2  运行成长和花园操作
+```bash
+pm2 start main.py --name "hana-grow" --interpreter python3 -- -a 2
+```
+
+
