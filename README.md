@@ -14,7 +14,7 @@
 
 ## 安装步骤
 ```bash
-git clone https://github.com/ziqing888/Hanafuda-bot
+git clone https://github.com/ziqing888/Hanafuda-bot.git
 cd Hanafuda-bot
 ```
 安装依赖包
