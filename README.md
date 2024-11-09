@@ -69,11 +69,11 @@ pm2 restart hana-grow
 停止进程：
 ```bash
 
-pm2 stop hana-tx
+pm2 stop hana-grow
 ```
 查看日志：
 ```bash
-pm2 logs hana-tx
+pm2 logs hana-grow
 ```
 如果您想支持我，请考虑请给我买杯咖啡到以下钱包：
 
