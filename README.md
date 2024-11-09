@@ -68,12 +68,12 @@ Hanafuda Bot 是一个强大的工具，专为您自动化 hanafuda 溯源空投
    ```
    npm install && npm run setup
    ```
-5. 进入 `Hanafuda-Testnet` 目录。
+5. 进入 `Hanafuda-bot` 目录。
 6. 进入 `accounts` 文件夹并将 `accounts_tmp.js` 重命名为 `accounts.js`。
 7. 打开 `accounts.js` 并设置你的账户。
-8. 返回 `Hanafuda-Testnet` 目录并进入 `config` 文件夹，按需要调整 `config.js` 配置。
+8. 返回 `Hanafuda-bot` 目录并进入 `config` 文件夹，按需要调整 `config.js` 配置。
 9. 如果需要使用代理，打开 `proxy_list.js` 进行配置。
-10. 返回 `Hanafuda-Testnet` 目录。
+10. 返回 `Hanafuda-bot` 目录。
 11. 打开 `命令提示符` 或 `PowerShell` 启动应用。
 12. 启动机器人
     ```
