@@ -4,7 +4,7 @@ Hanafuda Bot 是一个强大的工具，专为您自动化 hanafuda 溯源空投
 ## 注册 HanaFuda（Hana 网络）
 
 - https://hanafuda.hana.network
-- 使用邀请码：
+- 使用邀请码：MR8SVT
 - 在 ARB 或 BASE 网络中存入 $0.5-$1 以获得低 gas 费用
 - 转到仪表盘
 - 通过 Grow 和 Draw Hanafuda 赚取积分
