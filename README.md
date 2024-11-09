@@ -27,7 +27,7 @@ Hanafuda Bot 是一个强大的工具，专为您自动化 hanafuda 溯源空投
 ### Linux
 1. 克隆项目仓库
    ```
-   git clone https://github.com/airdropinsiders/Hanafuda-Testnet.git && cd Hanafuda-Testnet
+   git clone https://github.com/ziqing888/Hanafuda-bot.git && cd Hanafuda-bot
    ```
 2. 执行
 
@@ -61,7 +61,7 @@ Hanafuda Bot 是一个强大的工具，专为您自动化 hanafuda 溯源空投
 2. 克隆项目仓库
 
    ```
-   git clone https://github.com/Widiskel/hanafuda-bot.git && cd hanafuda-bot
+   git clone https://github.com/ziqing888/Hanafuda-bot && cd Hanafuda-bot
    ```
 3. 执行 
 
