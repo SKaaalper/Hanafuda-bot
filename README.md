@@ -53,11 +53,28 @@ python3 main.py
 ```bash
 npm install -g pm2
 ```
-使用 pm2  运行成长和花园操作
+使用 pm2  运行花园操作
 ```bash
 pm2 start main.py --name "hana-grow" --interpreter python3 -- -a 2
 ```
-支持
+## 管理 pm2 进程
+列出正在运行的进程：
+```bash
+pm2 list
+```
+重新启动进程：
+```bash
+pm2 restart hana-grow
+```
+停止进程：
+```bash
+
+pm2 stop hana-tx
+```
+查看日志：
+```bash
+pm2 logs hana-tx
+```
 如果您想支持我，请考虑请给我买杯咖啡到以下钱包：
 
 EVM：0x30c03e3b73200b344b708350ab0cbd70fda5f849
