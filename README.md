@@ -1,4 +1,4 @@
-# 自动成长和开启花园奖励箱
+# 自动成长和开启花园奖励箱+自动存款 
 
 
 ## 描述
@@ -75,6 +75,34 @@ pm2 stop hana-grow
 ```bash
 pm2 logs hana-grow
 ```
+## 自动存款 
+导航到项目目录
+```bash
+cd Hanafuda-bot
+```
+安装依赖项
+执行以下命令，安装所需的软件包。
+```bash
+npm install web3@1.8.0 chalk@2
+```
+编辑tokens.json文件
+```bash
+{
+  "authToken": "Bearer your_initial_auth_token",
+  "refreshToken": "your_initial_refresh_token"
+}
+```
+![image](https://github.com/user-attachments/assets/b98890e7-2664-4ea2-9f9f-00239714c18d)
+
+运行机器人
+使用以下命令启动机器人：
+```js
+node index.js
+```
+输入参数
+输入您要执行的的次数。
+选择是使用默认 ETH 数量还是输入自定义值。
+
 如果您想支持我，请考虑请给我买杯咖啡到以下钱包：
 
 EVM：0x30c03e3b73200b344b708350ab0cbd70fda5f849
