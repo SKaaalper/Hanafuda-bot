@@ -14,7 +14,7 @@ const TOKEN_FILE = './tokens.json';
 // 常量
 const REQUEST_URL = 'https://hanafuda-backend-app-520478841386.us-central1.run.app/graphql';
 const REFRESH_URL = 'https://securetoken.googleapis.com/v1/token?key=AIzaSyDipzN0VRfTPnMGhQ5PSzO27Cxm3DohJGY';
-const FEE_THRESHOLD = 0.00000030;  // 交易费阈值（以太币）
+const FEE_THRESHOLD = 0.00000060;  // 交易费阈值（以太币）
 
 // 设置 web3 实例
 const web3 = new Web3(new Web3.providers.HttpProvider(RPC_URL));
@@ -41,10 +41,12 @@ const rl = readline.createInterface({
   output: process.stdout
 });
 
-// 从文本文件中读取私钥
+// 从 pvkey.txt 文件中读取私钥
 function readPrivateKeys() {
   try {
-    const data = fs.readFileSync('pvkey.txt', 'utf8');
+    const filePath = __dirname + '/pvkey.txt'; // 修改为 pvkey.txt
+    console.log('尝试读取私钥文件路径:', filePath);
+    const data = fs.readFileSync(filePath, 'utf8');
     return data.split('\n').map(key => key.trim()).filter(key => key.length > 0);
   } catch (error) {
     console.error('读取私钥时出错:', error.message);
@@ -74,15 +76,6 @@ function saveTokens(tokens) {
   }
 }
 
-// 显示自定义 Logo
-function printHeader() {
-  console.log(chalk.yellow('╔════════════════════════════════════════╗'));
-  console.log(chalk.yellow('║      🚀  hanafuda自动工具 🚀           ║'));
-  console.log(chalk.yellow('║  👤    脚本编写：@qklxsqf              ║'));
-  console.log(chalk.yellow('║  📢  电报频道：https://t.me/ksqxszq    ║'));
-  console.log(chalk.yellow('╚════════════════════════════════════════╝'));
-}
-
 // 刷新令牌的函数
 async function refreshTokenHandler() {
   const tokens = getTokens();
@@ -106,6 +99,24 @@ async function refreshTokenHandler() {
     console.error(`刷新令牌失败: ${error.message}`);
     return false;
   }
+}
+
+// 等待交易费低于定义的阈值（单位：以太币）
+async function waitForLowerFee(gasLimit) {
+  let gasPrice, txnFeeInEther;
+  do {
+    gasPrice = await web3.eth.getGasPrice();
+    const txnFee = gasPrice * gasLimit;  // 交易费（单位：Wei）
+    txnFeeInEther = web3.utils.fromWei(txnFee.toString(), 'ether');  // 将交易费转换为以太币
+
+    if (parseFloat(txnFeeInEther) > FEE_THRESHOLD) {
+      console.log(`当前交易费: ${txnFeeInEther} ETH，正在等待...`);
+      await new Promise(resolve => setTimeout(resolve, 5000));  // 等待5秒后再次检查
+    }
+  } while (parseFloat(txnFeeInEther) > FEE_THRESHOLD);
+
+  console.log(`检测到可接受的交易费: ${txnFeeInEther} ETH`);
+  return gasPrice;  // 返回可接受的 gas 价格
 }
 
 // 使用重试机制与后端同步交易
@@ -172,24 +183,6 @@ async function syncTransaction(txHash) {
   }
 }
 
-// 等待交易费低于定义的阈值（单位：以太币）
-async function waitForLowerFee(gasLimit) {
-  let gasPrice, txnFeeInEther;
-  do {
-    gasPrice = await web3.eth.getGasPrice();
-    const txnFee = gasPrice * gasLimit;  // 交易费（单位：Wei）
-    txnFeeInEther = web3.utils.fromWei(txnFee.toString(), 'ether');  // 将交易费转换为以太币
-
-    if (parseFloat(txnFeeInEther) > FEE_THRESHOLD) {
-      console.log(`当前交易费: ${txnFeeInEther} ETH，正在等待...`);
-      await new Promise(resolve => setTimeout(resolve, 5000));  // 等待5秒后再次检查
-    }
-  } while (parseFloat(txnFeeInEther) > FEE_THRESHOLD);
-
-  console.log(`检测到可接受的交易费: ${txnFeeInEther} ETH`);
-  return gasPrice;  // 返回可接受的 gas 价格
-}
-
 // 为所有钱包执行交易
 async function executeTransactionsForAllWallets(privateKeys, numTx, amountInEther) {
   for (const privateKey of privateKeys) {
@@ -215,7 +208,6 @@ async function executeTransactions(privateKey, numTx, amountInEther) {
         const currentNonce = await web3.eth.getTransactionCount(fromAddress, 'pending');
         const gasLimit = await contract.methods.depositETH().estimateGas({ from: fromAddress, value: amountInWei });
 
-        // 在继续之前等待交易费低于阈值
         const gasPrice = await waitForLowerFee(gasLimit);
 
         const tx = {
@@ -250,13 +242,32 @@ async function executeTransactions(privateKey, numTx, amountInEther) {
   }
 }
 
-// 主函数和其他代码保持不变
+// 显示标题
+function printHeader() {
+  const line = "=".repeat(50);
+  const title = "自动存款 Hanafuda";
+  const createdBy = "机器人创建者:https://t.me/ksqxszq ";
+
+  const totalWidth = 50;
+  const titlePadding = Math.floor((totalWidth - title.length) / 2);
+  const createdByPadding = Math.floor((totalWidth - createdBy.length) / 2);
+
+  const centeredTitle = title.padStart(titlePadding + title.length).padEnd(totalWidth);
+  const centeredCreatedBy = createdBy.padStart(createdByPadding + createdBy.length).padEnd(totalWidth);
+
+  console.log(chalk.cyan.bold(line));
+  console.log(chalk.cyan.bold(centeredTitle));
+  console.log(chalk.green(centeredCreatedBy));
+  console.log(chalk.cyan.bold(line));
+}
+
+// 主函数
 async function main() {
   try {
     const privateKeys = readPrivateKeys();
 
     if (privateKeys.length === 0) {
-      console.log('private_keys.txt 中未找到任何私钥。退出...');
+      console.log('pvkey.txt 中未找到任何私钥。退出...');
       process.exit(1);
     }
 
@@ -294,6 +305,6 @@ async function main() {
   }
 }
 
-// 执行主函数
+// 运行主函数
 printHeader();
 main();
