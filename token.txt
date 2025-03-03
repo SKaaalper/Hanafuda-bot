@@ -1,3 +1,0 @@
-refresh-token-1
-refresh-token-2
-refresh-token-3
