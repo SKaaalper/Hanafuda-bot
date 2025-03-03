@@ -3,20 +3,35 @@ const chalk = require('chalk');
 const fs = require('fs');
 const readline = require('readline');
 const Web3 = require('web3');
-const util = require('util');
-const { TOKEN_FILE, PRIVATE_KEY_FILE, REQUEST_URL, REFRESH_URL, RPC_URL, CONTRACT_ADDRESS, FEE_THRESHOLD, WITH_ALL, DRAW_LIMIT, LOOP_DELAY, USER_AGENT, ABI } = require('./utils/config');
-const printBanner = require('./utils/banner');
+const util = require('util'); 
+
+// 配置常量
+const TOKEN_FILE = './tokens.json';
+const PRIVATE_KEY_FILE = './pvkey.txt';
+const REQUEST_URL = 'https://hanafuda-backend-app-520478841386.us-central1.run.app/graphql';
+const REFRESH_URL = 'https://securetoken.googleapis.com/v1/token?key=AIzaSyDipzN0VRfTPnMGhQ5PSzO27Cxm3DohJGY';
+const RPC_URL = 'https://mainnet.base.org';
+const CONTRACT_ADDRESS = '0xC5bf05cD32a14BFfb705Fb37a9d218895187376c';
+const FEE_THRESHOLD = 0.00000060;
+const WITH_ALL = false;
+const DRAW_LIMIT = 10;
+const LOOP_DELAY = 5;
+const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
+
+// 初始化 Web3 和合约
 const web3 = new Web3(new Web3.providers.HttpProvider(RPC_URL));
+const ABI = [{ "constant": false, "inputs": [], "name": "depositETH", "outputs": [], "payable": true, "stateMutability": "payable", "type": "function" }];
 const contract = new web3.eth.Contract(ABI, CONTRACT_ADDRESS);
 
+// 初始化 readline 并 promisify question 方法
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 const questionAsync = util.promisify(rl.question).bind(rl);
 
-
+// 全局变量
 let accounts = [];
 let privateKeys = [];
 
-
+// 日志输出函数
 function printMessage(message, type = 'info') {
   const timestamp = new Date().toLocaleTimeString('zh-CN', { hour12: false });
   if (type === 'success') console.log(chalk.green.bold(`[${timestamp}] ✔️  ${message}`));
@@ -24,7 +39,24 @@ function printMessage(message, type = 'info') {
   else console.log(chalk.cyan(`[${timestamp}] ℹ️  ${message}`));
 }
 
+// 美观的横幅
+function printBanner() {
+  const banner = `
+  ==================================================
+  |                                                |
+  |       欢迎使用 Hanafuda 多功能自动化助手       |
+  |       1. 自动存款 ETH (支持单个或多个私钥)    |
+  |       2. 自动增长 (Grow Action)               |
+  |       3. 自动抽卡 (Draw Cards)                |
+  |                                               |
+  |                                                |
+  ==================================================
+  `;
+  console.log(chalk.cyan.bold(banner));
+  printMessage('请确保 tokensgrow.json 和 pvkey.txt 已准备好（pvkey.txt 可只含一个私钥）！', 'info');
+}
 
+// 加载账户信息
 function loadTokens() {
   if (fs.existsSync(TOKEN_FILE)) {
     try {
@@ -38,7 +70,7 @@ function loadTokens() {
   }
 }
 
-
+// 保存账户信息
 function saveTokens() {
   const tokensData = {};
   accounts.forEach(account => (tokensData[account.refreshToken] = account));
@@ -220,7 +252,7 @@ async function executeGrowAction(account) {
 
 // 执行抽卡
 async function executeDraw(account) {
-  const growPayload = { operationName: 'GetGardenForCurrentUser', query: `query GetGardenForCurrentUser { getGardenForCurrentUser { gardenStatus { gardenRewardActionCount } } }` };
+  const gardenPayload = { operationName: 'GetGardenForCurrentUser', query: `query GetGardenForCurrentUser { getGardenForCurrentUser { gardenStatus { gardenRewardActionCount } } }` };
   const drawPayload = {
     operationName: 'executeGardenRewardAction',
     query: `mutation executeGardenRewardAction($limit: Int!) { executeGardenRewardAction(limit: $limit) { data { cardId group } } }`,
@@ -228,8 +260,8 @@ async function executeDraw(account) {
   };
 
   try {
-    const growData = await postRequest(growPayload, account.authToken);
-    let remainingDraws = growData.data.getGardenForCurrentUser.gardenStatus.gardenRewardActionCount;
+    const gardenData = await postRequest(gardenPayload, account.authToken);
+    let remainingDraws = gardenData.data.getGardenForCurrentUser.gardenStatus.gardenRewardActionCount;
     printMessage(`${account.userName} 可用的抽卡次数：${remainingDraws}`, 'info');
     if (remainingDraws === 0) return;
 
@@ -268,9 +300,9 @@ async function runLoopMode() {
   }
 }
 
-// 用户交互主函数
+// 用户交互主函数（改为 async）
 async function askUserChoice() {
-  printBanner(chalk, printMessage); // 调用横幅模块
+  printBanner();
   loadTokens();
   loadPrivateKeys();
 
