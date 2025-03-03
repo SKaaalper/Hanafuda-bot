@@ -8,5 +8,5 @@ ${chalk.yellow('║  📢  电报频道：https://t.me/ksqxszq    ║')}
 ${chalk.yellow('╚════════════════════════════════════════╝')}${chalk.reset('')}
   `;
   console.log(banner);
-  printMessage('请确保 tokensgrow.json 和 pvkey.txt 已准备好！', 'info');
+  printMessage('请确保 tokens.json 和 pvkey.txt 已准备好！', 'info');
 };
