@@ -3,35 +3,40 @@ const chalk = require('chalk');
 const fs = require('fs');
 const readline = require('readline');
 const Web3 = require('web3');
-const util = require('util'); 
-
-// 配置常量
-const TOKEN_FILE = './tokens.json';
-const PRIVATE_KEY_FILE = './pvkey.txt';
-const REQUEST_URL = 'https://hanafuda-backend-app-520478841386.us-central1.run.app/graphql';
-const REFRESH_URL = 'https://securetoken.googleapis.com/v1/token?key=AIzaSyDipzN0VRfTPnMGhQ5PSzO27Cxm3DohJGY';
-const RPC_URL = 'https://mainnet.base.org';
-const CONTRACT_ADDRESS = '0xC5bf05cD32a14BFfb705Fb37a9d218895187376c';
-const FEE_THRESHOLD = 0.00000060;
-const WITH_ALL = false;
-const DRAW_LIMIT = 10;
-const LOOP_DELAY = 5;
-const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
+const util = require('util');
+const { 
+  TOKEN_FILE, 
+  PRIVATE_KEY_FILE, 
+  REQUEST_URL, 
+  REFRESH_URL, 
+  RPC_URL, 
+  CONTRACT_ADDRESS, 
+  FEE_THRESHOLD, 
+  WITH_ALL, 
+  DRAW_LIMIT, 
+  LOOP_DELAY, 
+  USER_AGENT, 
+  ABI 
+} = require('./utils/config');
+const printBanner = require('./utils/banner');
 
 // 初始化 Web3 和合约
-const web3 = new Web3(new Web3.providers.HttpProvider(RPC_URL));
-const ABI = [{ "constant": false, "inputs": [], "name": "depositETH", "outputs": [], "payable": true, "stateMutability": "payable", "type": "function" }];
-const contract = new web3.eth.Contract(ABI, CONTRACT_ADDRESS);
+let web3;
+let contract;
+try {
+  web3 = new Web3(RPC_URL);
+  contract = new web3.eth.Contract(ABI, CONTRACT_ADDRESS);
+} catch (error) {
+  console.error('Web3 初始化失败:', error.message);
+  process.exit(1);
+}
 
-// 初始化 readline 并 promisify question 方法
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 const questionAsync = util.promisify(rl.question).bind(rl);
 
-// 全局变量
 let accounts = [];
 let privateKeys = [];
 
-// 日志输出函数
 function printMessage(message, type = 'info') {
   const timestamp = new Date().toLocaleTimeString('zh-CN', { hour12: false });
   if (type === 'success') console.log(chalk.green.bold(`[${timestamp}] ✔️  ${message}`));
@@ -39,28 +44,21 @@ function printMessage(message, type = 'info') {
   else console.log(chalk.cyan(`[${timestamp}] ℹ️  ${message}`));
 }
 
-// 美观的横幅
-function printBanner() {
-  const banner = `
-  ==================================================
-  |                                                |
-  |       欢迎使用 Hanafuda 多功能自动化助手       |
-  |       1. 自动存款 ETH (支持单个或多个私钥)    |
-  |       2. 自动增长 (Grow Action)               |
-  |       3. 自动抽卡 (Draw Cards)                |
-  |                                               |
-  |                                                |
-  ==================================================
-  `;
-  console.log(chalk.cyan.bold(banner));
-  printMessage('请确保 tokensgrow.json 和 pvkey.txt 已准备好（pvkey.txt 可只含一个私钥）！', 'info');
-}
-
-// 加载账户信息
+// 修改后的 loadTokens 函数：支持单个账户对象格式
 function loadTokens() {
   if (fs.existsSync(TOKEN_FILE)) {
     try {
-      accounts = Object.values(JSON.parse(fs.readFileSync(TOKEN_FILE, 'utf8')));
+      const rawData = JSON.parse(fs.readFileSync(TOKEN_FILE, 'utf8'));
+      // 如果 rawData 是数组，则直接赋值
+      if (Array.isArray(rawData)) {
+        accounts = rawData;
+      } else if (rawData && rawData.authToken && rawData.refreshToken) {
+        // 如果是单个账户对象，则包装成数组
+        accounts = [rawData];
+      } else {
+        // 否则认为是以 refreshToken 为 key 的对象
+        accounts = Object.values(rawData);
+      }
       printMessage(`成功加载 ${accounts.length} 个账户`, 'success');
     } catch (error) {
       printMessage(`加载 ${TOKEN_FILE} 失败：${error.message}`, 'error');
@@ -70,19 +68,25 @@ function loadTokens() {
   }
 }
 
-// 保存账户信息
+// 修改后的 saveTokens 函数：当只有一个账户时直接保存为单个对象格式
 function saveTokens() {
-  const tokensData = {};
-  accounts.forEach(account => (tokensData[account.refreshToken] = account));
-  fs.writeFileSync(TOKEN_FILE, JSON.stringify(tokensData, null, 2));
+  if (accounts.length === 1) {
+    fs.writeFileSync(TOKEN_FILE, JSON.stringify(accounts[0], null, 2));
+  } else {
+    const tokensData = {};
+    accounts.forEach(account => (tokensData[account.refreshToken] = account));
+    fs.writeFileSync(TOKEN_FILE, JSON.stringify(tokensData, null, 2));
+  }
   printMessage('账户信息已保存', 'success');
 }
 
-// 加载私钥
 function loadPrivateKeys() {
   if (fs.existsSync(PRIVATE_KEY_FILE)) {
     try {
-      privateKeys = fs.readFileSync(PRIVATE_KEY_FILE, 'utf8').split('\n').map(key => key.trim()).filter(key => key);
+      privateKeys = fs.readFileSync(PRIVATE_KEY_FILE, 'utf8')
+        .split('\n')
+        .map(key => key.trim())
+        .filter(key => key);
       printMessage(`成功加载 ${privateKeys.length} 个私钥${privateKeys.length === 1 ? '（单个私钥模式）' : ''}`, 'success');
     } catch (error) {
       printMessage(`加载 ${PRIVATE_KEY_FILE} 失败：${error.message}`, 'error');
@@ -92,7 +96,6 @@ function loadPrivateKeys() {
   }
 }
 
-// 刷新 token
 async function refreshToken(account) {
   try {
     const response = await axios.post(REFRESH_URL, null, {
@@ -104,12 +107,18 @@ async function refreshToken(account) {
     printMessage(`${account.userName || '未知用户'} token 刷新成功`, 'success');
     return account.authToken;
   } catch (error) {
-    printMessage(`${account.userName || '未知用户'} token 刷新失败：${error.message}`, 'error');
+    if (error.response && error.response.status === 400) {
+      printMessage(
+        `${account.userName || '未知用户'} 刷新 token 无效，可能需要重新登录或更新 token 文件`,
+        'error'
+      );
+    } else {
+      printMessage(`${account.userName || '未知用户'} token 刷新失败：${error.message}`, 'error');
+    }
     throw error;
   }
 }
 
-// GraphQL 请求封装
 async function postRequest(payload, token) {
   try {
     const response = await axios.post(REQUEST_URL, payload, {
@@ -121,14 +130,33 @@ async function postRequest(payload, token) {
   }
 }
 
-// 获取用户名
 async function getUserName(account) {
   const payload = { operationName: 'CurrentUser', query: `query CurrentUser { currentUser { id name } }` };
   try {
     const data = await postRequest(payload, account.authToken);
-    account.userName = data.data.currentUser.name;
-    printMessage(`获取用户名为：${account.userName}`, 'success');
-    return account.userName;
+    console.log('返回数据：', data);
+
+    if (data.errors && data.errors.length > 0) {
+      const unauthorizedError = data.errors.find(err => 
+        err.message.includes("Unauthorized") || err.message.includes("auth/id-token-expired")
+      );
+      if (unauthorizedError) {
+        printMessage(`${account.userName || '未知用户'} token 未授权或已过期，正在刷新`, 'info');
+        account.authToken = await refreshToken(account);
+        return await getUserName(account);
+      }
+      printMessage('获取用户信息失败，返回数据中 currentUser 为 null', 'error');
+      throw new Error('currentUser 为 null');
+    }
+
+    if (data && data.data && data.data.currentUser) {
+      account.userName = data.data.currentUser.name;
+      printMessage(`获取用户名为：${account.userName}`, 'success');
+      return account.userName;
+    } else {
+      printMessage('获取用户信息失败，返回数据中 currentUser 为 null', 'error');
+      throw new Error('currentUser 为 null');
+    }
   } catch (error) {
     if (error.response?.status === 401) {
       account.authToken = await refreshToken(account);
@@ -138,7 +166,6 @@ async function getUserName(account) {
   }
 }
 
-// 等待低交易费
 async function waitForLowerFee(gasLimit) {
   let gasPrice, feeInEther;
   do {
@@ -153,7 +180,6 @@ async function waitForLowerFee(gasLimit) {
   return gasPrice;
 }
 
-// 同步交易到后端
 async function syncTransaction(txHash, authToken) {
   const payload = {
     query: `mutation SyncEthereumTx($chainId: Int!, $txHash: String!) { syncEthereumTx(chainId: $chainId, txHash: $txHash) }`,
@@ -176,7 +202,6 @@ async function syncTransaction(txHash, authToken) {
   }
 }
 
-// 自动存款
 async function depositETH(privateKey, numTx, amountInEther) {
   const account = web3.eth.accounts.privateKeyToAccount(privateKey);
   web3.eth.accounts.wallet.add(account);
@@ -215,9 +240,11 @@ async function depositETH(privateKey, numTx, amountInEther) {
   }
 }
 
-// 执行 Grow Action
 async function executeGrowAction(account) {
-  const growPayload = { operationName: 'GetGardenForCurrentUser', query: `query GetGardenForCurrentUser { getGardenForCurrentUser { gardenStatus { growActionCount } } }` };
+  const growPayload = { 
+    operationName: 'GetGardenForCurrentUser', 
+    query: `query GetGardenForCurrentUser { getGardenForCurrentUser { gardenStatus { growActionCount } } }` 
+  };
   const executePayload = {
     operationName: 'ExecuteGrowAction',
     query: `mutation ExecuteGrowAction($withAll: Boolean) { executeGrowAction(withAll: $withAll) { totalValue } }`,
@@ -250,9 +277,11 @@ async function executeGrowAction(account) {
   }
 }
 
-// 执行抽卡
 async function executeDraw(account) {
-  const gardenPayload = { operationName: 'GetGardenForCurrentUser', query: `query GetGardenForCurrentUser { getGardenForCurrentUser { gardenStatus { gardenRewardActionCount } } }` };
+  const gardenPayload = { 
+    operationName: 'GetGardenForCurrentUser', 
+    query: `query GetGardenForCurrentUser { getGardenForCurrentUser { gardenStatus { gardenRewardActionCount } } }` 
+  };
   const drawPayload = {
     operationName: 'executeGardenRewardAction',
     query: `mutation executeGardenRewardAction($limit: Int!) { executeGardenRewardAction(limit: $limit) { data { cardId group } } }`,
@@ -282,7 +311,6 @@ async function executeDraw(account) {
   }
 }
 
-// 处理单个账户（Grow + Draw）
 async function processAccount(account) {
   await getUserName(account);
   await executeGrowAction(account);
@@ -290,7 +318,6 @@ async function processAccount(account) {
   printMessage(`${account.userName} 本轮任务完成`, 'success');
 }
 
-// 主循环模式（Grow + Draw）
 async function runLoopMode() {
   while (true) {
     printMessage('开始新一轮任务...', 'info');
@@ -300,9 +327,8 @@ async function runLoopMode() {
   }
 }
 
-// 用户交互主函数（改为 async）
 async function askUserChoice() {
-  printBanner();
+  printBanner(chalk, printMessage);
   loadTokens();
   loadPrivateKeys();
 
@@ -372,7 +398,6 @@ async function askUserChoice() {
   }
 }
 
-// 启动程序
 askUserChoice().catch(error => {
   printMessage(`程序出错：${error.message}`, 'error');
   rl.close();
