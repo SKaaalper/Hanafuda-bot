@@ -27,6 +27,8 @@ npm install
 nano pvkey.txt
 ```
 编辑 tokens.json，输入认证令牌（支持单账户或多账户格式）：
+![image](https://github.com/user-attachments/assets/c20f41fd-fe27-4038-b500-62b0f5c3f8be)
+
 ```bash
 nano tokens.json
 ```
