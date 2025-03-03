@@ -1,5 +1,5 @@
 module.exports = {
-  TOKEN_FILE: './tokensgrow.json',
+  TOKEN_FILE: './tokens.json',
   PRIVATE_KEY_FILE: './pvkey.txt',
   REQUEST_URL: 'https://hanafuda-backend-app-520478841386.us-central1.run.app/graphql',
   REFRESH_URL: 'https://securetoken.googleapis.com/v1/token?key=AIzaSyDipzN0VRfTPnMGhQ5PSzO27Cxm3DohJGY',
