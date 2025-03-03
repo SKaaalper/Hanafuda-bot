@@ -19,86 +19,61 @@ cd Hanafuda-bot
 ```
 安装依赖包
 ```bash
-pip install -r requirements.txt
+npm install
 
 ```
 编辑 pvkey.txt 并输入私钥
 ```bash
 nano pvkey.txt
 ```
-运行脚本
+编辑 tokens.json，输入认证令牌（支持单账户或多账户格式）：
 ```bash
-python3 main.py
+nano tokens.json
 ```
-## 运行成长和开启花园奖励箱
-首先，您需要获取刷新令牌
-
-打开 HANA 仪表板：https://hanafuda.hana.network/dashboard
-
-按 F12 打开控制台
-
-找到 "Application"，选择 session storage
-
-选择 hana 并复制您的 refreshToken
-
-编辑 token.txt 并粘贴您的刷新令牌
-
-![image](https://github.com/user-attachments/assets/fda26b50-6727-4b58-b957-5a6b92a59b90)
-
-## 可选：使用 pm2 在后台运行脚本
-可以使用 pm2 在后台运行脚本，使其在关闭终端后继续运行。
-
-安装 pm2
-如果未安装 pm2，可以通过 npm 全局安装
-```bash
-npm install -g pm2
-```
-使用 pm2  运行花园操作
-```bash
-pm2 start main.py --name "hana-grow" --interpreter python3 -- -a 2
-```
-## 管理 pm2 进程
-列出正在运行的进程：
-```bash
-pm2 list
-```
-重新启动进程：
-```bash
-pm2 restart hana-grow
-```
-停止进程：
-```bash
-
-pm2 stop hana-grow
-```
-查看日志：
-```bash
-pm2 logs hana-grow
-```
-## 自动存款 
-导航到项目目录
-```bash
-cd Hanafuda-bot
-```
-安装依赖项
-执行以下命令，安装所需的软件包。
-```bash
-npm install web3@1.8.0 chalk@2
-```
-编辑tokens.json文件
+单账户示例：
 ```bash
 {
   "authToken": "Bearer your_initial_auth_token",
   "refreshToken": "your_initial_refresh_token"
 }
 ```
-![image](https://github.com/user-attachments/assets/b98890e7-2664-4ea2-9f9f-00239714c18d)
 
-运行机器人
-使用以下命令启动机器人：
-```js
-node index.js
+多账户示例：
+```bash
+{
+  "refreshToken1": { "refreshToken": "xxx", "authToken": "Bearer xxx" },
+  "refreshToken2": { "refreshToken": "yyy", "authToken": "Bearer yyy" }
+}
 ```
+运行脚本
+```bash
+npm start
+```
+- 选择运行模式：
+- 1: 自动存款 ETH（输入交易次数和金额）
+
+- 2: 自动成长和抽卡（每 5 分钟循环一次）
+
+- 3: 两者都运行（先存款，再循环成长和抽卡）
+### 可选：使用 PM2 在后台运行
+安装 PM2：
+```bash
+npm install -g pm2
+```
+后台运行脚本：
+```bash
+pm2 start bot.js --name "hana-bot"
+```
+管理 PM2 进程：
+- 列出进程：pm2 list
+
+- 重启进程：pm2 restart hana-bot
+
+- 停止进程：pm2 stop hana-bot
+
+- 查看日志：pm2 logs hana-bot
+
+
 输入参数
 输入您要执行的的次数。
 选择是使用默认 ETH 数量还是输入自定义值。
