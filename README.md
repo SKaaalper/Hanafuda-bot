@@ -78,12 +78,6 @@ pm2 start bot.js --name "hana-bot"
 输入您要执行的的次数。
 选择是使用默认 ETH 数量还是输入自定义值。
 
-如果您想支持我，请考虑请给我买杯咖啡到以下钱包：
 
-EVM：0x30c03e3b73200b344b708350ab0cbd70fda5f849
-
-索拉纳：AegoPL4HoBkn3gkT5VoF23t7JFTMmQvGjSUimo627777
-
-感谢您的支持
 
 
