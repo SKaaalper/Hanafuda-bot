@@ -1,0 +1,25 @@
+{
+  "name": "hanafuda-automation",
+  "version": "1.0.0",
+  "description": "Hanafuda 多功能自动化助手，支持自动存款、增长和抽卡",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "@qklxsqf (Telegram: https://t.me/ksqxszq)",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.8",
+    "chalk": "^4.1.2",
+    "web3": "^4.7.0"
+  },
+  "devDependencies": {},
+  "keywords": [
+    "hanafuda",
+    "automation",
+    "ethereum",
+    "grow-action",
+    "draw-cards"
+  ]
+}
