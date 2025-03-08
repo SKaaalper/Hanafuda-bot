@@ -2,7 +2,7 @@ const axios = require('axios');
 const chalk = require('chalk');
 const fs = require('fs');
 const readline = require('readline');
-const Web3 = require('web3'); // ✅ Corrected import
+const Web3 = require('web3'); // ✅ Corrected Web3 import
 const util = require('util');
 const { 
   TOKEN_FILE, 
@@ -24,7 +24,7 @@ const printBanner = require('./utils/banner');
 let web3;
 let contract;
 try {
-  web3 = new Web3(new Web3.providers.HttpProvider(RPC_URL)); // ✅ Corrected Web3 initialization
+  web3 = new Web3(RPC_URL); // ✅ Fixed Web3 initialization
   contract = new web3.eth.Contract(ABI, CONTRACT_ADDRESS);
 } catch (error) {
   console.error('Web3 initialization failed:', error.message);
@@ -44,7 +44,6 @@ function printMessage(message, type = 'info') {
   else console.log(chalk.cyan(`[${timestamp}] ℹ️  ${message}`));
 }
 
-// Modified loadTokens function: Supports single account object format
 function loadTokens() {
   if (fs.existsSync(TOKEN_FILE)) {
     try {
@@ -65,7 +64,6 @@ function loadTokens() {
   }
 }
 
-// Modified saveTokens function
 function saveTokens() {
   if (accounts.length === 1) {
     fs.writeFileSync(TOKEN_FILE, JSON.stringify(accounts[0], null, 2));
