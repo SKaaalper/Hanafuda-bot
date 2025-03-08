@@ -2,8 +2,9 @@ const axios = require('axios');
 const chalk = require('chalk');
 const fs = require('fs');
 const readline = require('readline');
-const { Web3 } = require('web3');
+const Web3 = require('web3');
 const util = require('util');
+
 const { 
   TOKEN_FILE, 
   PRIVATE_KEY_FILE, 
@@ -20,111 +21,79 @@ const {
 } = require('./utils/config');
 const printBanner = require('./utils/banner');
 
-let web3;
-let contract;
-try {
-  web3 = new Web3(new Web3.providers.HttpProvider(RPC_URL));
-  contract = new web3.eth.Contract(ABI, CONTRACT_ADDRESS);
-} catch (error) {
-  console.error('Web3 initialization failed:', error.message);
-  process.exit(1);
-}
+// Initialize Web3 properly
+let web3 = new Web3(new Web3.providers.HttpProvider(RPC_URL));
+let contract = new web3.eth.Contract(ABI, CONTRACT_ADDRESS);
 
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-const questionAsync = util.promisify(rl.question).bind(rl);
+const questionAsync = (query) => new Promise((resolve) => rl.question(query, resolve));
 
 let accounts = [];
 let privateKeys = [];
 
 function printMessage(message, type = 'info') {
   const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false });
-  if (type === 'success') console.log(chalk.green.bold(`[${timestamp}] ✔️  ${message}`));
-  else if (type === 'error') console.log(chalk.red.bold(`[${timestamp}] ❌  ${message}`));
+  if (type === 'success') console.log(chalk.green.bold(`[${timestamp}] ✅ ${message}`));
+  else if (type === 'error') console.log(chalk.red.bold(`[${timestamp}] ❌ ${message}`));
   else console.log(chalk.cyan(`[${timestamp}] ℹ️  ${message}`));
 }
 
+// Load tokens
 function loadTokens() {
   if (fs.existsSync(TOKEN_FILE)) {
     try {
       const rawData = JSON.parse(fs.readFileSync(TOKEN_FILE, 'utf8'));
-      accounts = Array.isArray(rawData) ? rawData : Object.values(rawData);
+      accounts = Array.isArray(rawData) ? rawData : [rawData];
       printMessage(`Loaded ${accounts.length} accounts`, 'success');
     } catch (error) {
-      printMessage(`Failed to load ${TOKEN_FILE}: ${error.message}`, 'error');
+      printMessage(`Failed to load tokens: ${error.message}`, 'error');
     }
-  } else {
-    printMessage(`${TOKEN_FILE} not found`, 'error');
   }
 }
 
-function saveTokens() {
-  const tokensData = accounts.length === 1 ? accounts[0] : Object.fromEntries(accounts.map(a => [a.refreshToken, a]));
-  fs.writeFileSync(TOKEN_FILE, JSON.stringify(tokensData, null, 2));
-  printMessage('Account information saved', 'success');
-}
-
+// Load private keys
 function loadPrivateKeys() {
   if (fs.existsSync(PRIVATE_KEY_FILE)) {
     try {
       privateKeys = fs.readFileSync(PRIVATE_KEY_FILE, 'utf8')
         .split('\n')
         .map(key => key.trim())
-        .filter(Boolean);
+        .filter(key => key);
       printMessage(`Loaded ${privateKeys.length} private keys`, 'success');
     } catch (error) {
-      printMessage(`Failed to load ${PRIVATE_KEY_FILE}: ${error.message}`, 'error');
+      printMessage(`Failed to load private keys: ${error.message}`, 'error');
     }
-  } else {
-    printMessage(`${PRIVATE_KEY_FILE} not found`, 'error');
   }
 }
 
-async function refreshToken(account) {
-  try {
-    const response = await axios.post(REFRESH_URL, null, {
-      params: { grant_type: 'refresh_token', refresh_token: account.refreshToken },
-    });
-    account.authToken = `Bearer ${response.data.access_token}`;
-    account.refreshToken = response.data.refresh_token || account.refreshToken;
-    saveTokens();
-    printMessage(`${account.userName || 'Unknown user'} token refreshed`, 'success');
-    return account.authToken;
-  } catch (error) {
-    printMessage(`Token refresh failed: ${error.message}`, 'error');
-    throw error;
+// Main menu function
+async function askUserChoice() {
+  printBanner(chalk, printMessage);
+  loadTokens();
+  loadPrivateKeys();
+
+  console.log('\nSelect an option:\n1. Auto Deposit ETH\n2. Auto Grow & Draw (Loop)\n3. Run Both');
+  
+  const choice = await questionAsync('Enter choice (1, 2, or 3): ');
+
+  switch (choice.trim()) {
+    case '1':
+      console.log('Running Auto Deposit ETH...');
+      break;
+    case '2':
+      console.log('Running Auto Grow & Draw...');
+      break;
+    case '3':
+      console.log('Running Both Functions...');
+      break;
+    default:
+      printMessage('Invalid selection, exiting...', 'error');
   }
+
+  rl.close();
 }
 
-async function postRequest(payload, token) {
-  try {
-    const response = await axios.post(REQUEST_URL, payload, {
-      headers: { 'Content-Type': 'application/json', 'Authorization': token, 'User-Agent': USER_AGENT },
-    });
-    return response.data;
-  } catch (error) {
-    console.error(`HTTP Request Failed: ${error.response?.data || error.message}`);
-    throw error;
-  }
-}
-
-async function getUserName(account) {
-  const payload = { operationName: 'CurrentUser', query: `query { currentUser { id name } }` };
-  try {
-    const data = await postRequest(payload, account.authToken);
-    if (data?.data?.currentUser) {
-      account.userName = data.data.currentUser.name;
-      printMessage(`User: ${account.userName}`, 'success');
-      return account.userName;
-    }
-    throw new Error('currentUser is null');
-  } catch (error) {
-    if (error.response?.status === 401) {
-      account.authToken = await refreshToken(account);
-      return await getUserName(account);
-    }
-    throw error;
-  }
-}
-
-loadTokens();
-loadPrivateKeys();
+askUserChoice().catch(error => {
+  printMessage(`Error: ${error.message}`, 'error');
+  rl.close();
+});
