@@ -20,26 +20,14 @@ const {
 } = require('./utils/config');
 const printBanner = require('./utils/banner');
 
+// Initialize Web3 and contract
 let web3;
 let contract;
-
-if (!RPC_URL) {
-  console.error('❌ ERROR: RPC_URL is undefined. Check your config file.');
-  process.exit(1);
-}
-
 try {
-  console.log('🔄 Connecting to RPC:', RPC_URL);
-  web3 = new Web3(new Web3.providers.HttpProvider(RPC_URL));
-
-  if (!web3) {
-    throw new Error('Web3 instance is not created');
-  }
-
+  web3 = new Web3(RPC_URL);
   contract = new web3.eth.Contract(ABI, CONTRACT_ADDRESS);
-  console.log('✅ Web3 Initialized Successfully!');
 } catch (error) {
-  console.error('❌ Web3 initialization failed:', error.message);
+  console.error('Web3 initialization failed:', error.message);
   process.exit(1);
 }
 
@@ -50,7 +38,7 @@ let accounts = [];
 let privateKeys = [];
 
 function printMessage(message, type = 'info') {
-  const timestamp = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+  const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false });
   if (type === 'success') console.log(chalk.green.bold(`[${timestamp}] ✔️  ${message}`));
   else if (type === 'error') console.log(chalk.red.bold(`[${timestamp}] ❌  ${message}`));
   else console.log(chalk.cyan(`[${timestamp}] ℹ️  ${message}`));
@@ -72,7 +60,7 @@ function loadTokens() {
       printMessage(`Failed to load ${TOKEN_FILE}: ${error.message}`, 'error');
     }
   } else {
-    printMessage(`${TOKEN_FILE} not found, functions may be unavailable`, 'error');
+    printMessage(`${TOKEN_FILE} not found, growth and draw card functions will be unavailable`, 'error');
   }
 }
 
@@ -87,22 +75,6 @@ function saveTokens() {
   printMessage('Account information saved', 'success');
 }
 
-function loadPrivateKeys() {
-  if (fs.existsSync(PRIVATE_KEY_FILE)) {
-    try {
-      privateKeys = fs.readFileSync(PRIVATE_KEY_FILE, 'utf8')
-        .split('\n')
-        .map(key => key.trim())
-        .filter(key => key);
-      printMessage(`Successfully loaded ${privateKeys.length} private keys`, 'success');
-    } catch (error) {
-      printMessage(`Failed to load ${PRIVATE_KEY_FILE}: ${error.message}`, 'error');
-    }
-  } else {
-    printMessage(`${PRIVATE_KEY_FILE} not found, deposit function will be unavailable`, 'error');
-  }
-}
-
 async function refreshToken(account) {
   try {
     const response = await axios.post(REFRESH_URL, null, {
@@ -114,14 +86,7 @@ async function refreshToken(account) {
     printMessage(`${account.userName || 'Unknown User'} token refreshed successfully`, 'success');
     return account.authToken;
   } catch (error) {
-    if (error.response && error.response.status === 400) {
-      printMessage(
-        `${account.userName || 'Unknown User'} refresh token invalid, may need to re-login or update token file`,
-        'error'
-      );
-    } else {
-      printMessage(`${account.userName || 'Unknown User'} token refresh failed: ${error.message}`, 'error');
-    }
+    printMessage(`${account.userName || 'Unknown User'} token refresh failed: ${error.message}`, 'error');
     throw error;
   }
 }
@@ -141,27 +106,12 @@ async function getUserName(account) {
   const payload = { operationName: 'CurrentUser', query: `query CurrentUser { currentUser { id name } }` };
   try {
     const data = await postRequest(payload, account.authToken);
-    console.log('Returned Data:', data);
-
-    if (data.errors && data.errors.length > 0) {
-      const unauthorizedError = data.errors.find(err =>
-        err.message.includes("Unauthorized") || err.message.includes("auth/id-token-expired")
-      );
-      if (unauthorizedError) {
-        printMessage(`${account.userName || 'Unknown User'} token expired, refreshing`, 'info');
-        account.authToken = await refreshToken(account);
-        return await getUserName(account);
-      }
-      printMessage('Failed to retrieve user information, currentUser returned null', 'error');
-      throw new Error('currentUser is null');
-    }
-
     if (data && data.data && data.data.currentUser) {
       account.userName = data.data.currentUser.name;
       printMessage(`Retrieved username: ${account.userName}`, 'success');
       return account.userName;
     } else {
-      printMessage('Failed to retrieve user information, currentUser returned null', 'error');
+      printMessage('Failed to retrieve user information', 'error');
       throw new Error('currentUser is null');
     }
   } catch (error) {
@@ -172,3 +122,42 @@ async function getUserName(account) {
     throw error;
   }
 }
+
+async function processAccount(account) {
+  await getUserName(account);
+  printMessage(`${account.userName} task completed`, 'success');
+}
+
+async function runLoopMode() {
+  while (true) {
+    printMessage('Starting a new task cycle...', 'info');
+    await Promise.all(accounts.map(account => processAccount(account)));
+    printMessage(`Task cycle complete, waiting ${LOOP_DELAY} minutes...`, 'info');
+    await new Promise(resolve => setTimeout(resolve, 60000 * LOOP_DELAY));
+  }
+}
+
+async function askUserChoice() {
+  printBanner(chalk, printMessage);
+  loadTokens();
+  const choice = await questionAsync('Choose run mode (enter number):\n1. Growth and Draw Card (Loop)\n> ');
+  switch (choice) {
+    case '1':
+      if (accounts.length === 0) {
+        printMessage('No accounts found, cannot execute growth and draw card', 'error');
+        rl.close();
+        return;
+      }
+      rl.close();
+      await runLoopMode();
+      break;
+    default:
+      printMessage('Invalid option, please enter 1', 'error');
+      rl.close();
+  }
+}
+
+askUserChoice().catch(error => {
+  printMessage(`Program error: ${error.message}`, 'error');
+  rl.close();
+});
