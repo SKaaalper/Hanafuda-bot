@@ -27,7 +27,7 @@ try {
   web3 = new Web3(RPC_URL);
   contract = new web3.eth.Contract(ABI, CONTRACT_ADDRESS);
 } catch (error) {
-  console.error('Failed to initialize Web3:', error.message);
+  console.error('Web3 initialization failed:', error.message);
   process.exit(1);
 }
 
@@ -38,7 +38,7 @@ let accounts = [];
 let privateKeys = [];
 
 function printMessage(message, type = 'info') {
-  const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false });
+  const timestamp = new Date().toLocaleTimeString('zh-CN', { hour12: false });
   if (type === 'success') console.log(chalk.green.bold(`[${timestamp}] ✔️  ${message}`));
   else if (type === 'error') console.log(chalk.red.bold(`[${timestamp}] ❌  ${message}`));
   else console.log(chalk.cyan(`[${timestamp}] ℹ️  ${message}`));
@@ -53,10 +53,10 @@ function loadTokens() {
       if (Array.isArray(rawData)) {
         accounts = rawData;
       } else if (rawData && rawData.authToken && rawData.refreshToken) {
-        // If it's a single account object, wrap it in an array
+        // If it is a single account object, wrap it in an array
         accounts = [rawData];
       } else {
-        // Otherwise, assume it's an object with refreshToken as keys
+        // Otherwise, assume it is an object using refreshToken as keys
         accounts = Object.values(rawData);
       }
       printMessage(`Successfully loaded ${accounts.length} accounts`, 'success');
@@ -64,11 +64,11 @@ function loadTokens() {
       printMessage(`Failed to load ${TOKEN_FILE}: ${error.message}`, 'error');
     }
   } else {
-    printMessage(`${TOKEN_FILE} does not exist, grow and draw functions will be unavailable`, 'error');
+    printMessage(`${TOKEN_FILE} does not exist, growth and draw functions will be unavailable`, 'error');
   }
 }
 
-// Modified saveTokens function: Saves as a single object format if there's only one account
+// Modified saveTokens function: Saves as a single object when only one account exists
 function saveTokens() {
   if (accounts.length === 1) {
     fs.writeFileSync(TOKEN_FILE, JSON.stringify(accounts[0], null, 2));
@@ -109,7 +109,7 @@ async function refreshToken(account) {
   } catch (error) {
     if (error.response && error.response.status === 400) {
       printMessage(
-        `${account.userName || 'Unknown user'} refresh token is invalid, you may need to re-login or update the token file`,
+        `${account.userName || 'Unknown user'} refresh token is invalid, might need to log in again or update token file`,
         'error'
       );
     } else {
@@ -141,20 +141,20 @@ async function getUserName(account) {
         err.message.includes("Unauthorized") || err.message.includes("auth/id-token-expired")
       );
       if (unauthorizedError) {
-        printMessage(`${account.userName || 'Unknown user'} token is unauthorized or expired, refreshing now`, 'info');
+        printMessage(`${account.userName || 'Unknown user'} token unauthorized or expired, refreshing`, 'info');
         account.authToken = await refreshToken(account);
         return await getUserName(account);
       }
-      printMessage('Failed to retrieve user information, currentUser returned null', 'error');
+      printMessage('Failed to retrieve user info, currentUser is null in response', 'error');
       throw new Error('currentUser is null');
     }
 
     if (data && data.data && data.data.currentUser) {
       account.userName = data.data.currentUser.name;
-      printMessage(`Username retrieved: ${account.userName}`, 'success');
+      printMessage(`User name retrieved: ${account.userName}`, 'success');
       return account.userName;
     } else {
-      printMessage('Failed to retrieve user information, currentUser returned null', 'error');
+      printMessage('Failed to retrieve user info, currentUser is null in response', 'error');
       throw new Error('currentUser is null');
     }
   } catch (error) {
@@ -165,4 +165,3 @@ async function getUserName(account) {
     throw error;
   }
 }
-
