@@ -2,7 +2,7 @@ const axios = require('axios');
 const chalk = require('chalk');
 const fs = require('fs');
 const readline = require('readline');
-const Web3 = require('web3');
+const { Web3 } = require('web3');
 const util = require('util');
 const { 
   TOKEN_FILE, 
