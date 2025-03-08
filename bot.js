@@ -2,32 +2,44 @@ const axios = require('axios');
 const chalk = require('chalk');
 const fs = require('fs');
 const readline = require('readline');
-const { Web3 } = require('web3');
+const Web3 = require('web3');
 const util = require('util');
-const { 
-  TOKEN_FILE, 
-  PRIVATE_KEY_FILE, 
-  REQUEST_URL, 
-  REFRESH_URL, 
-  RPC_URL, 
-  CONTRACT_ADDRESS, 
-  FEE_THRESHOLD, 
-  WITH_ALL, 
-  DRAW_LIMIT, 
-  LOOP_DELAY, 
-  USER_AGENT, 
-  ABI 
+const {
+  TOKEN_FILE,
+  PRIVATE_KEY_FILE,
+  REQUEST_URL,
+  REFRESH_URL,
+  RPC_URL,
+  CONTRACT_ADDRESS,
+  FEE_THRESHOLD,
+  WITH_ALL,
+  DRAW_LIMIT,
+  LOOP_DELAY,
+  USER_AGENT,
+  ABI
 } = require('./utils/config');
 const printBanner = require('./utils/banner');
 
-// Initialize Web3 and contract
 let web3;
 let contract;
+
+if (!RPC_URL) {
+  console.error('❌ ERROR: RPC_URL is undefined. Check your config file.');
+  process.exit(1);
+}
+
 try {
+  console.log('🔄 Connecting to RPC:', RPC_URL);
   web3 = new Web3(new Web3.providers.HttpProvider(RPC_URL));
+
+  if (!web3) {
+    throw new Error('Web3 instance is not created');
+  }
+
   contract = new web3.eth.Contract(ABI, CONTRACT_ADDRESS);
+  console.log('✅ Web3 Initialized Successfully!');
 } catch (error) {
-  console.error('Web3 initialization failed:', error.message);
+  console.error('❌ Web3 initialization failed:', error.message);
   process.exit(1);
 }
 
@@ -44,7 +56,6 @@ function printMessage(message, type = 'info') {
   else console.log(chalk.cyan(`[${timestamp}] ℹ️  ${message}`));
 }
 
-// Load tokens function (Modified: Supports single account object format)
 function loadTokens() {
   if (fs.existsSync(TOKEN_FILE)) {
     try {
@@ -61,11 +72,10 @@ function loadTokens() {
       printMessage(`Failed to load ${TOKEN_FILE}: ${error.message}`, 'error');
     }
   } else {
-    printMessage(`${TOKEN_FILE} not found, growth and draw card functions will be unavailable`, 'error');
+    printMessage(`${TOKEN_FILE} not found, functions may be unavailable`, 'error');
   }
 }
 
-// Save tokens function (Modified: Saves as a single object when only one account exists)
 function saveTokens() {
   if (accounts.length === 1) {
     fs.writeFileSync(TOKEN_FILE, JSON.stringify(accounts[0], null, 2));
@@ -84,7 +94,7 @@ function loadPrivateKeys() {
         .split('\n')
         .map(key => key.trim())
         .filter(key => key);
-      printMessage(`Successfully loaded ${privateKeys.length} private keys${privateKeys.length === 1 ? ' (Single private key mode)' : ''}`, 'success');
+      printMessage(`Successfully loaded ${privateKeys.length} private keys`, 'success');
     } catch (error) {
       printMessage(`Failed to load ${PRIVATE_KEY_FILE}: ${error.message}`, 'error');
     }
@@ -134,11 +144,11 @@ async function getUserName(account) {
     console.log('Returned Data:', data);
 
     if (data.errors && data.errors.length > 0) {
-      const unauthorizedError = data.errors.find(err => 
+      const unauthorizedError = data.errors.find(err =>
         err.message.includes("Unauthorized") || err.message.includes("auth/id-token-expired")
       );
       if (unauthorizedError) {
-        printMessage(`${account.userName || 'Unknown User'} token unauthorized or expired, refreshing`, 'info');
+        printMessage(`${account.userName || 'Unknown User'} token expired, refreshing`, 'info');
         account.authToken = await refreshToken(account);
         return await getUserName(account);
       }
