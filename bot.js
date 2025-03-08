@@ -4,7 +4,6 @@ const fs = require('fs');
 const readline = require('readline');
 const Web3 = require('web3');
 const util = require('util');
-
 const { 
   TOKEN_FILE, 
   PRIVATE_KEY_FILE, 
@@ -21,37 +20,63 @@ const {
 } = require('./utils/config');
 const printBanner = require('./utils/banner');
 
-// Initialize Web3 properly
-let web3 = new Web3(new Web3.providers.HttpProvider(RPC_URL));
-let contract = new web3.eth.Contract(ABI, CONTRACT_ADDRESS);
+// Initialize Web3 and contract
+let web3;
+let contract;
+try {
+  web3 = new Web3(RPC_URL);
+  contract = new web3.eth.Contract(ABI, CONTRACT_ADDRESS);
+} catch (error) {
+  console.error('Web3 initialization failed:', error.message);
+  process.exit(1);
+}
 
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-const questionAsync = (query) => new Promise((resolve) => rl.question(query, resolve));
+const questionAsync = util.promisify(rl.question).bind(rl);
 
 let accounts = [];
 let privateKeys = [];
 
 function printMessage(message, type = 'info') {
-  const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false });
-  if (type === 'success') console.log(chalk.green.bold(`[${timestamp}] ✅ ${message}`));
-  else if (type === 'error') console.log(chalk.red.bold(`[${timestamp}] ❌ ${message}`));
+  const timestamp = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+  if (type === 'success') console.log(chalk.green.bold(`[${timestamp}] ✔️  ${message}`));
+  else if (type === 'error') console.log(chalk.red.bold(`[${timestamp}] ❌  ${message}`));
   else console.log(chalk.cyan(`[${timestamp}] ℹ️  ${message}`));
 }
 
-// Load tokens
+// Load tokens function (Modified: Supports single account object format)
 function loadTokens() {
   if (fs.existsSync(TOKEN_FILE)) {
     try {
       const rawData = JSON.parse(fs.readFileSync(TOKEN_FILE, 'utf8'));
-      accounts = Array.isArray(rawData) ? rawData : [rawData];
-      printMessage(`Loaded ${accounts.length} accounts`, 'success');
+      if (Array.isArray(rawData)) {
+        accounts = rawData;
+      } else if (rawData && rawData.authToken && rawData.refreshToken) {
+        accounts = [rawData];
+      } else {
+        accounts = Object.values(rawData);
+      }
+      printMessage(`Successfully loaded ${accounts.length} accounts`, 'success');
     } catch (error) {
-      printMessage(`Failed to load tokens: ${error.message}`, 'error');
+      printMessage(`Failed to load ${TOKEN_FILE}: ${error.message}`, 'error');
     }
+  } else {
+    printMessage(`${TOKEN_FILE} not found, growth and draw card functions will be unavailable`, 'error');
   }
 }
 
-// Load private keys
+// Save tokens function (Modified: Saves as a single object when only one account exists)
+function saveTokens() {
+  if (accounts.length === 1) {
+    fs.writeFileSync(TOKEN_FILE, JSON.stringify(accounts[0], null, 2));
+  } else {
+    const tokensData = {};
+    accounts.forEach(account => (tokensData[account.refreshToken] = account));
+    fs.writeFileSync(TOKEN_FILE, JSON.stringify(tokensData, null, 2));
+  }
+  printMessage('Account information saved', 'success');
+}
+
 function loadPrivateKeys() {
   if (fs.existsSync(PRIVATE_KEY_FILE)) {
     try {
@@ -59,41 +84,81 @@ function loadPrivateKeys() {
         .split('\n')
         .map(key => key.trim())
         .filter(key => key);
-      printMessage(`Loaded ${privateKeys.length} private keys`, 'success');
+      printMessage(`Successfully loaded ${privateKeys.length} private keys${privateKeys.length === 1 ? ' (Single private key mode)' : ''}`, 'success');
     } catch (error) {
-      printMessage(`Failed to load private keys: ${error.message}`, 'error');
+      printMessage(`Failed to load ${PRIVATE_KEY_FILE}: ${error.message}`, 'error');
     }
+  } else {
+    printMessage(`${PRIVATE_KEY_FILE} not found, deposit function will be unavailable`, 'error');
   }
 }
 
-// Main menu function
-async function askUserChoice() {
-  printBanner(chalk, printMessage);
-  loadTokens();
-  loadPrivateKeys();
-
-  console.log('\nSelect an option:\n1. Auto Deposit ETH\n2. Auto Grow & Draw (Loop)\n3. Run Both');
-  
-  const choice = await questionAsync('Enter choice (1, 2, or 3): ');
-
-  switch (choice.trim()) {
-    case '1':
-      console.log('Running Auto Deposit ETH...');
-      break;
-    case '2':
-      console.log('Running Auto Grow & Draw...');
-      break;
-    case '3':
-      console.log('Running Both Functions...');
-      break;
-    default:
-      printMessage('Invalid selection, exiting...', 'error');
+async function refreshToken(account) {
+  try {
+    const response = await axios.post(REFRESH_URL, null, {
+      params: { grant_type: 'refresh_token', refresh_token: account.refreshToken },
+    });
+    account.authToken = `Bearer ${response.data.access_token}`;
+    account.refreshToken = response.data.refresh_token || account.refreshToken;
+    saveTokens();
+    printMessage(`${account.userName || 'Unknown User'} token refreshed successfully`, 'success');
+    return account.authToken;
+  } catch (error) {
+    if (error.response && error.response.status === 400) {
+      printMessage(
+        `${account.userName || 'Unknown User'} refresh token invalid, may need to re-login or update token file`,
+        'error'
+      );
+    } else {
+      printMessage(`${account.userName || 'Unknown User'} token refresh failed: ${error.message}`, 'error');
+    }
+    throw error;
   }
-
-  rl.close();
 }
 
-askUserChoice().catch(error => {
-  printMessage(`Error: ${error.message}`, 'error');
-  rl.close();
-});
+async function postRequest(payload, token) {
+  try {
+    const response = await axios.post(REQUEST_URL, payload, {
+      headers: { 'Content-Type': 'application/json', 'Authorization': token, 'User-Agent': USER_AGENT },
+    });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function getUserName(account) {
+  const payload = { operationName: 'CurrentUser', query: `query CurrentUser { currentUser { id name } }` };
+  try {
+    const data = await postRequest(payload, account.authToken);
+    console.log('Returned Data:', data);
+
+    if (data.errors && data.errors.length > 0) {
+      const unauthorizedError = data.errors.find(err => 
+        err.message.includes("Unauthorized") || err.message.includes("auth/id-token-expired")
+      );
+      if (unauthorizedError) {
+        printMessage(`${account.userName || 'Unknown User'} token unauthorized or expired, refreshing`, 'info');
+        account.authToken = await refreshToken(account);
+        return await getUserName(account);
+      }
+      printMessage('Failed to retrieve user information, currentUser returned null', 'error');
+      throw new Error('currentUser is null');
+    }
+
+    if (data && data.data && data.data.currentUser) {
+      account.userName = data.data.currentUser.name;
+      printMessage(`Retrieved username: ${account.userName}`, 'success');
+      return account.userName;
+    } else {
+      printMessage('Failed to retrieve user information, currentUser returned null', 'error');
+      throw new Error('currentUser is null');
+    }
+  } catch (error) {
+    if (error.response?.status === 401) {
+      account.authToken = await refreshToken(account);
+      return await getUserName(account);
+    }
+    throw error;
+  }
+}
