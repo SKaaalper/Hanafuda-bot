@@ -1,7 +1,7 @@
 {
   "name": "hanafuda-automation",
   "version": "1.0.0",
-  "description": "Hanafuda 多功能自动化助手，支持自动存款、增长和抽卡",
+  "description": "Hanafuda multifunctional automation assistant, supporting automatic deposits, growth, and card drawing",
   "main": "bot.js",
   "scripts": {
     "start": "node bot.js",
