@@ -2,7 +2,7 @@ const axios = require('axios');
 const chalk = require('chalk');
 const fs = require('fs');
 const readline = require('readline');
-const { Web3 } = require('web3');
+const Web3 = require('web3'); // ✅ Corrected import
 const util = require('util');
 const { 
   TOKEN_FILE, 
@@ -24,7 +24,7 @@ const printBanner = require('./utils/banner');
 let web3;
 let contract;
 try {
-  web3 = new Web3(RPC_URL);
+  web3 = new Web3(new Web3.providers.HttpProvider(RPC_URL)); // ✅ Corrected Web3 initialization
   contract = new web3.eth.Contract(ABI, CONTRACT_ADDRESS);
 } catch (error) {
   console.error('Web3 initialization failed:', error.message);
@@ -49,14 +49,11 @@ function loadTokens() {
   if (fs.existsSync(TOKEN_FILE)) {
     try {
       const rawData = JSON.parse(fs.readFileSync(TOKEN_FILE, 'utf8'));
-      // If rawData is an array, assign it directly
       if (Array.isArray(rawData)) {
         accounts = rawData;
       } else if (rawData && rawData.authToken && rawData.refreshToken) {
-        // If it is a single account object, wrap it in an array
         accounts = [rawData];
       } else {
-        // Otherwise, assume it is an object using refreshToken as keys
         accounts = Object.values(rawData);
       }
       printMessage(`Successfully loaded ${accounts.length} accounts`, 'success');
@@ -68,7 +65,7 @@ function loadTokens() {
   }
 }
 
-// Modified saveTokens function: Saves as a single object when only one account exists
+// Modified saveTokens function
 function saveTokens() {
   if (accounts.length === 1) {
     fs.writeFileSync(TOKEN_FILE, JSON.stringify(accounts[0], null, 2));
