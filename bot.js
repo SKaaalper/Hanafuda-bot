@@ -2,7 +2,7 @@ const axios = require('axios');
 const chalk = require('chalk');
 const fs = require('fs');
 const readline = require('readline');
-const Web3 = require('web3'); // ✅ Corrected Web3 import
+const { Web3 } = require('web3');
 const util = require('util');
 const { 
   TOKEN_FILE, 
@@ -24,7 +24,7 @@ const printBanner = require('./utils/banner');
 let web3;
 let contract;
 try {
-  web3 = new Web3(RPC_URL); // ✅ Fixed Web3 initialization
+  const web3 = new Web3(RPC_URL); // ✅ Fixed Web3 initialization
   contract = new web3.eth.Contract(ABI, CONTRACT_ADDRESS);
 } catch (error) {
   console.error('Web3 initialization failed:', error.message);
