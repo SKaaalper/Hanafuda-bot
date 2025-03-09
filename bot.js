@@ -315,14 +315,14 @@ async function processAccount(account) {
   await getUserName(account);
   await executeGrowAction(account);
   await executeDraw(account);
-  printMessage(`${account.userName} 本轮任务完成`, 'success');
+  printMessage(`${account.userName} This round of tasks is complete`, 'success');
 }
 
 async function runLoopMode() {
   while (true) {
-    printMessage('开始新一轮任务...', 'info');
+    printMessage('Starting a new round of tasks...', 'info');
     await Promise.all(accounts.map(account => processAccount(account)));
-    printMessage(`本轮任务完成，等待 ${LOOP_DELAY} 分钟...`, 'info');
+    printMessage(`This round of tasks is complete, waiting ${LOOP_DELAY} minutes...`, 'info');
     await new Promise(resolve => setTimeout(resolve, 60000 * LOOP_DELAY));
   }
 }
